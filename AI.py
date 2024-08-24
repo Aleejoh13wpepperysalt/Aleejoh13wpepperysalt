@@ -1,3 +1,5 @@
+import tkinter as tk
+from tkinter import messagebox
 import random
 import pickle
 
@@ -26,16 +28,13 @@ class LearningAI:
 
     def train(self):
         action = self.choose_action()
-        print(f"AI chose: {action}")
         
         if action == 'mistake':
             mistake_id = random.randint(1, 1000)
             self.memory['mistakes'][mistake_id] = True
-            print(f"Mistake made! Logged mistake ID: {mistake_id}")
         else:
             learned_info = f"Learned data at {random.randint(1, 1000)}"
             self.memory['learned_data'].append(learned_info)
-            print(f"AI learned: {learned_info}")
         
         self.save_memory()
 
@@ -44,31 +43,54 @@ class LearningAI:
             return "I haven't learned anything yet."
         
         response = random.choice(self.memory['learned_data'])
-        print(f"AI says: {response}")
+        return response
 
     def review_mistakes(self):
         if not self.memory['mistakes']:
             return "No mistakes logged."
         
-        print("Reviewing mistakes:")
-        for mistake_id in self.memory['mistakes']:
-            print(f"Mistake ID: {mistake_id}")
+        mistakes = "\n".join([f"Mistake ID: {mistake_id}" for mistake_id in self.memory['mistakes']])
+        return mistakes
 
     def kill(self):
-        print("AI acknowledges the mistake. Marking as false information.")
+        return "AI acknowledges the mistake. Marking as false information."
 
-# Usage
-ai = LearningAI()
+# GUI Class
+class AIApp:
+    def __init__(self, root):
+        self.ai = LearningAI()
+        self.root = root
+        self.root.title("AI Interface")
+        
+        self.train_button = tk.Button(root, text="Train AI", command=self.train_ai)
+        self.train_button.pack(pady=10)
 
-# Training loop
-for _ in range(10):  # Train the AI over 10 iterations
-    ai.train()
+        self.talk_button = tk.Button(root, text="Talk", command=self.ai_talk)
+        self.talk_button.pack(pady=10)
+        
+        self.review_button = tk.Button(root, text="Review Mistakes", command=self.review_mistakes)
+        self.review_button.pack(pady=10)
 
-# Talking with the AI
-ai.talk()
+        self.kill_button = tk.Button(root, text="Kill", command=self.kill_ai)
+        self.kill_button.pack(pady=10)
 
-# Reviewing mistakes
-ai.review_mistakes()
+    def train_ai(self):
+        self.ai.train()
+        messagebox.showinfo("Training", "AI trained successfully!")
 
-# Kill command example
-ai.kill()
+    def ai_talk(self):
+        response = self.ai.talk()
+        messagebox.showinfo("AI Says", response)
+
+    def review_mistakes(self):
+        mistakes = self.ai.review_mistakes()
+        messagebox.showinfo("Mistakes", mistakes)
+
+    def kill_ai(self):
+        result = self.ai.kill()
+        messagebox.showinfo("Kill", result)
+
+# Create the main window
+root = tk.Tk()
+app = AIApp(root)
+root.mainloop()
