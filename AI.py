@@ -22,18 +22,28 @@ class LearningAI:
             pickle.dump(self.memory, f)
 
     def learn_from_website(self, url, tag, limit=5):
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        content = soup.find_all(tag, limit=limit)
-        learned_data = [element.get_text() for element in content]
-        self.memory['learned_data'].extend(learned_data)
-        self.save_memory()
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            content = soup.find_all(tag, limit=limit)
+            learned_data = [element.get_text() for element in content]
+            self.memory['learned_data'].extend(learned_data)
+            self.save_memory()
+        except requests.RequestException as e:
+            print(f"An error occurred while accessing {url}: {e}")
 
-    def talk(self):
+    def talk(self, user_input):
         if not self.memory['learned_data']:
             return "I haven't learned anything yet."
-        response = random.choice(self.memory['learned_data'])
-        return response
+
+        # Basic keyword matching
+        for data in self.memory['learned_data']:
+            if any(keyword.lower() in user_input.lower() for keyword in data.split()):
+                return data
+
+        # Default response if no match is found
+        return "I didn't understand that. Can you please elaborate?"
 
     def review_mistakes(self):
         if not self.memory['mistakes']:
@@ -70,8 +80,8 @@ class AIApp:
         elif user_text.lower() == "review mistakes":
             response = self.ai.review_mistakes()
         else:
-            response = self.ai.talk()
-        
+            response = self.ai.talk(user_text)
+
         self.display_message("You: " + user_text)
         self.display_message("AI: " + response)
         self.user_input.delete(0, tk.END)
