@@ -1,5 +1,7 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import scrolledtext, messagebox
+import requests
+from bs4 import BeautifulSoup
 import random
 import pickle
 
@@ -7,7 +9,6 @@ class LearningAI:
     def __init__(self, memory_file='memory.pkl'):
         self.memory_file = memory_file
         self.memory = self.load_memory()
-        self.actions = ['correct_action', 'mistake']
 
     def load_memory(self):
         try:
@@ -20,35 +21,23 @@ class LearningAI:
         with open(self.memory_file, 'wb') as f:
             pickle.dump(self.memory, f)
 
-    def choose_action(self):
-        if random.random() > 0.5:
-            return 'correct_action'
-        else:
-            return 'mistake'
-
-    def train(self):
-        action = self.choose_action()
-        
-        if action == 'mistake':
-            mistake_id = random.randint(1, 1000)
-            self.memory['mistakes'][mistake_id] = True
-        else:
-            learned_info = f"Learned data at {random.randint(1, 1000)}"
-            self.memory['learned_data'].append(learned_info)
-        
+    def learn_from_website(self, url, tag, limit=5):
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        content = soup.find_all(tag, limit=limit)
+        learned_data = [element.get_text() for element in content]
+        self.memory['learned_data'].extend(learned_data)
         self.save_memory()
 
     def talk(self):
         if not self.memory['learned_data']:
             return "I haven't learned anything yet."
-        
         response = random.choice(self.memory['learned_data'])
         return response
 
     def review_mistakes(self):
         if not self.memory['mistakes']:
             return "No mistakes logged."
-        
         mistakes = "\n".join([f"Mistake ID: {mistake_id}" for mistake_id in self.memory['mistakes']])
         return mistakes
 
@@ -60,35 +49,51 @@ class AIApp:
     def __init__(self, root):
         self.ai = LearningAI()
         self.root = root
-        self.root.title("AI Interface")
+        self.root.title("AI Chat Interface")
+
+        self.chat_window = scrolledtext.ScrolledText(root, wrap=tk.WORD, state='disabled', width=50, height=20)
+        self.chat_window.pack(pady=10)
+
+        self.user_input = tk.Entry(root, width=40)
+        self.user_input.pack(pady=10)
+
+        self.send_button = tk.Button(root, text="Send", command=self.process_input)
+        self.send_button.pack(pady=10)
+
+        self.learn_button = tk.Button(root, text="Learn from Website", command=self.learn_from_website)
+        self.learn_button.pack(pady=10)
+
+    def process_input(self):
+        user_text = self.user_input.get()
+        if user_text.lower() == "kill":
+            response = self.ai.kill()
+        elif user_text.lower() == "review mistakes":
+            response = self.ai.review_mistakes()
+        else:
+            response = self.ai.talk()
         
-        self.train_button = tk.Button(root, text="Train AI", command=self.train_ai)
-        self.train_button.pack(pady=10)
+        self.display_message("You: " + user_text)
+        self.display_message("AI: " + response)
+        self.user_input.delete(0, tk.END)
 
-        self.talk_button = tk.Button(root, text="Talk", command=self.ai_talk)
-        self.talk_button.pack(pady=10)
-        
-        self.review_button = tk.Button(root, text="Review Mistakes", command=self.review_mistakes)
-        self.review_button.pack(pady=10)
+    def display_message(self, message):
+        self.chat_window.config(state='normal')
+        self.chat_window.insert(tk.END, message + "\n")
+        self.chat_window.config(state='disabled')
+        self.chat_window.yview(tk.END)
 
-        self.kill_button = tk.Button(root, text="Kill", command=self.kill_ai)
-        self.kill_button.pack(pady=10)
+    def learn_from_website(self):
+        # Example URLs and tags to learn from
+        sites_to_learn = [
+            {"url": "https://www.dictionary.com", "tag": "p"},  # Dictionary
+            {"url": "https://www.learnpython.org/", "tag": "p"},  # Python
+            {"url": "https://minecraft.fandom.com/wiki/Tutorials/Setting_up_a_server", "tag": "p"}  # Minecraft server
+        ]
 
-    def train_ai(self):
-        self.ai.train()
-        messagebox.showinfo("Training", "AI trained successfully!")
+        for site in sites_to_learn:
+            self.ai.learn_from_website(site['url'], site['tag'])
 
-    def ai_talk(self):
-        response = self.ai.talk()
-        messagebox.showinfo("AI Says", response)
-
-    def review_mistakes(self):
-        mistakes = self.ai.review_mistakes()
-        messagebox.showinfo("Mistakes", mistakes)
-
-    def kill_ai(self):
-        result = self.ai.kill()
-        messagebox.showinfo("Kill", result)
+        messagebox.showinfo("Learning", "AI learned from specified websites!")
 
 # Create the main window
 root = tk.Tk()
