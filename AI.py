@@ -4,6 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 import random
 import pickle
+import re
 
 class LearningAI:
     def __init__(self, memory_file='memory.pkl'):
@@ -21,13 +22,14 @@ class LearningAI:
         with open(self.memory_file, 'wb') as f:
             pickle.dump(self.memory, f)
 
-    def learn_from_website(self, url, tag, limit=5):
+    def learn_from_website(self, url, tag, limit=50):
         try:
             response = requests.get(url)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
-            content = soup.find_all(tag, limit=limit)
-            learned_data = [element.get_text() for element in content]
+            content = soup.find_all(tag)
+            learned_data = [element.get_text() for element in content if element.get_text().strip() != '']
+            learned_data = learned_data[:limit]
             self.memory['learned_data'].extend(learned_data)
             self.save_memory()
         except requests.RequestException as e:
@@ -37,12 +39,11 @@ class LearningAI:
         if not self.memory['learned_data']:
             return "I haven't learned anything yet."
 
-        # Basic keyword matching
+        user_input_lower = user_input.lower()
         for data in self.memory['learned_data']:
-            if any(keyword.lower() in user_input.lower() for keyword in data.split()):
+            if re.search(r'\b{}\b'.format(re.escape(user_input_lower)), data.lower()):
                 return data
 
-        # Default response if no match is found
         return "I didn't understand that. Can you please elaborate?"
 
     def review_mistakes(self):
