@@ -5,6 +5,10 @@ from bs4 import BeautifulSoup
 import random
 import pickle
 import re
+import spacy
+
+# Load spaCy model
+nlp = spacy.load("en_core_web_sm")
 
 class LearningAI:
     def __init__(self, memory_file='memory.pkl'):
@@ -39,12 +43,22 @@ class LearningAI:
         if not self.memory['learned_data']:
             return "I haven't learned anything yet."
 
-        user_input_lower = user_input.lower()
+        # Use spaCy for better understanding
+        user_doc = nlp(user_input)
+        best_match = None
+        highest_similarity = 0
+        
         for data in self.memory['learned_data']:
-            if re.search(r'\b{}\b'.format(re.escape(user_input_lower)), data.lower()):
-                return data
+            data_doc = nlp(data)
+            similarity = user_doc.similarity(data_doc)
+            if similarity > highest_similarity:
+                highest_similarity = similarity
+                best_match = data
 
-        return "I didn't understand that. Can you please elaborate?"
+        if highest_similarity > 0.5:  # Threshold for similarity
+            return best_match
+        else:
+            return "I didn't understand that. Can you please elaborate?"
 
     def review_mistakes(self):
         if not self.memory['mistakes']:
